@@ -20,7 +20,7 @@ function getSubImages(sub) {
       return Observable.of(JSON.parse(cachedImages));
   }
   else {
-    const url = `https://www.reddit.com/r/${sub}/.json?limit=200&show=all`;
+    const url = `https://www.reddit.com/r/${sub}/.json?limit=10&show=all`;
 
     // defer ensure new Observable (and therefore) promise gets created
     // for each subscription. This ensures functions like retry will
@@ -36,6 +36,27 @@ function getSubImages(sub) {
             return images;
           })));
   }
+}
+
+function preloadImage(src) {
+  return Observable.create(function subscribe(observer){
+    const loaderImage = new Image();
+    loaderImage.onload = function() {
+      observer.next(src);
+      observer.complete();
+    }
+  
+    loaderImage.onerror = function() {
+      observer.next(LOADING_ERROR_URL);
+      // inner and outter observers both finishes, then switch() finishes
+      observer.complete();
+    }
+    loaderImage.src = src;
+    return function unsubscribe(){
+      delete  loaderImage.onload;
+      delete  loaderImage.onerror;
+    }
+  })
 }
 
 // ---------------------- INSERT CODE  HERE ---------------------------
@@ -61,15 +82,18 @@ const indices = offsets
                .scan((cur, acc)=> acc+cur, 0);
 const indexes = Observable.of(0).concat(indices);
 
-const images = subs
+const imagesObserve = subs
   .map(sub=>
     getSubImages(sub)
       .map((images)=>{
-        return indexes.map((index)=>{
-            console.log(index,'====================================');
-            return images[index]
-        })
+        return indexes.
+                filter(index=> (index >= 0 && index< images.length)).
+                map((index)=>{
+                    return images[index]
+                })
       }).mergeAll()
+      .map(preloadImage)
+      .switch()
     ).switch();
 
 const ob = subs.
@@ -86,7 +110,7 @@ subs.subscribe({
 })
 
 
-images.subscribe({
+imagesObserve.subscribe({
   next(url) {
     // hide the loading image
     loading.style.visibility = "hidden";
@@ -104,17 +128,3 @@ images.subscribe({
 const actions = Observable.merge(subs, nexts, backs);
 
 actions.subscribe(() => loading.style.visibility = "visible");
-
-
-const preloadImage = Observable.create((observer)=>{
-  const loaderImage = new Image();
-  loaderImage.onload = function() {
-    observer.next();
-  }
-
-  loaderImage.onerror = function() {
-    observer.error();
-    observer.compelete();
-  }
-  loaderImage.src = url;
-})
