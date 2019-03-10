@@ -10,7 +10,8 @@
 tasks.map(task =>
         Observable.concat(
             Observable.of(1),
-            task.filter(() => false),
+            task.filter(() => false)
+                .catch(e => Observable.error(new SomeError(e))),
             Observable.of(-1))
     )
     .mergeAll()

@@ -17,3 +17,6 @@ animationsAllowed is a simple stream that switches to false as soon as a task st
 
 ## Notes
 do not cancel promise, use switchLatest to solve cancellation in UI.
+
+Promise/Asynchronous iterators are probably a good fit for WebSockets or IO streams,
+whereas something like an event, where there is no concept of back pressure, you can not tell the usre to wait for click, an Observable is a better fit for that.
